@@ -1,0 +1,27 @@
+name: Runner Test
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  test-runner:
+    runs-on: self-hosted
+
+    steps:
+      - name: Show runner information
+        run: |
+          echo "Hello from GitHub Actions!"
+          echo "Runner hostname:"
+          hostname
+          echo "User:"
+          whoami
+          echo "Working directory:"
+          pwd
+
+      - name: Check tools
+        run: |
+          git --version
+          podman --version
+          oc version --client
