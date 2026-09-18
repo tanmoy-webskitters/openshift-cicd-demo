@@ -1,4 +1,4 @@
-name: Build Application
+name: Build and Push Application
 
 on:
   push:
@@ -6,8 +6,12 @@ on:
       - main
 
 jobs:
-  build:
+  build-and-push:
     runs-on: self-hosted
+
+    env:
+      REGISTRY: ${{ secrets.OPENSHIFT_REGISTRY }}
+      IMAGE_NAME: cicd-demo/myapp
 
     steps:
       - name: Checkout source code
@@ -22,12 +26,6 @@ jobs:
           echo "Working directory:"
           pwd
 
-      - name: Check application files
-        run: |
-          ls -la
-          echo "Application file:"
-          cat app.py
-
       - name: Test application
         run: |
           python3 --version
@@ -35,8 +33,22 @@ jobs:
 
       - name: Build container image
         run: |
-          podman build -t myapp:${{ github.sha }} .
+          podman build -t $REGISTRY/$IMAGE_NAME:${{ github.sha }} .
 
-      - name: Verify container image
+      - name: Login to OpenShift registry
+        run: |
+          podman login \
+            --tls-verify=false \
+            -u github-actions \
+            -p "${{ secrets.OPENSHIFT_TOKEN }}" \
+            "$REGISTRY"
+
+      - name: Push container image
+        run: |
+          podman push \
+            --tls-verify=false \
+            "$REGISTRY/$IMAGE_NAME:${{ github.sha }}"
+
+      - name: Show image
         run: |
           podman images
