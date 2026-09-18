@@ -1,4 +1,4 @@
-name: Runner Test
+name: Build Application
 
 on:
   push:
@@ -6,13 +6,15 @@ on:
       - main
 
 jobs:
-  test-runner:
+  build:
     runs-on: self-hosted
 
     steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
       - name: Show runner information
         run: |
-          echo "Hello from GitHub Actions!"
           echo "Runner hostname:"
           hostname
           echo "User:"
@@ -20,8 +22,21 @@ jobs:
           echo "Working directory:"
           pwd
 
-      - name: Check tools
+      - name: Check application files
         run: |
-          git --version
-          podman --version
-          oc version --client
+          ls -la
+          echo "Application file:"
+          cat app.py
+
+      - name: Test application
+        run: |
+          python3 --version
+          python3 -m py_compile app.py
+
+      - name: Build container image
+        run: |
+          podman build -t myapp:${{ github.sha }} .
+
+      - name: Verify container image
+        run: |
+          podman images
