@@ -73,7 +73,7 @@ jobs:
             -n $NAMESPACE \
             --timeout=180s
 
-            - name: Verify deployment
+      - name: Verify deployment
         run: |
           echo "Deployment:"
           oc get deployment myapp -n $NAMESPACE
