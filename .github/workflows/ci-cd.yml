@@ -1,3 +1,4 @@
+```yaml
 name: Build, Push and Deploy
 
 on:
@@ -23,8 +24,10 @@ jobs:
         run: |
           echo "Runner hostname:"
           hostname
+
           echo "User:"
           whoami
+
           echo "Working directory:"
           pwd
 
@@ -37,6 +40,19 @@ jobs:
         run: |
           podman build \
             -t $REGISTRY/$IMAGE_NAME:$IMAGE_TAG .
+
+      - name: Check OpenShift token
+        run: |
+          if [ -z "${{ secrets.OPENSHIFT_TOKEN }}" ]; then
+            echo "OPENSHIFT_TOKEN is EMPTY"
+            exit 1
+          fi
+
+          echo "OPENSHIFT_TOKEN is present"
+
+          TOKEN_LENGTH=$(printf '%s' "${{ secrets.OPENSHIFT_TOKEN }}" | wc -c)
+
+          echo "Token length: $TOKEN_LENGTH"
 
       - name: Login to OpenShift registry
         run: |
@@ -59,6 +75,14 @@ jobs:
             "https://api.ocp4.example.com:6443" \
             --token="${{ secrets.OPENSHIFT_TOKEN }}" \
             --insecure-skip-tls-verify=true
+
+      - name: Verify OpenShift login
+        run: |
+          echo "OpenShift user:"
+          oc whoami
+
+          echo "Current project:"
+          oc project
 
       - name: Deploy new image
         run: |
@@ -86,3 +110,5 @@ jobs:
             -n $NAMESPACE \
             -o jsonpath='{.spec.template.spec.containers[*].image}'
           echo
+```
+
