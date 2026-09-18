@@ -1,0 +1,88 @@
+name: Build, Push and Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-push-deploy:
+    runs-on: self-hosted
+
+    env:
+      REGISTRY: ${{ secrets.OPENSHIFT_REGISTRY }}
+      IMAGE_NAME: cicd-demo/myapp
+      NAMESPACE: cicd-demo
+      IMAGE_TAG: ${{ github.sha }}
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Show runner information
+        run: |
+          echo "Runner hostname:"
+          hostname
+          echo "User:"
+          whoami
+          echo "Working directory:"
+          pwd
+
+      - name: Test application
+        run: |
+          python3 --version
+          python3 -m py_compile app.py
+
+      - name: Build container image
+        run: |
+          podman build \
+            -t $REGISTRY/$IMAGE_NAME:$IMAGE_TAG .
+
+      - name: Login to OpenShift registry
+        run: |
+          printf '%s' "${{ secrets.OPENSHIFT_TOKEN }}" | \
+            podman login \
+            --tls-verify=false \
+            -u serviceaccount \
+            --password-stdin \
+            "$REGISTRY"
+
+      - name: Push container image
+        run: |
+          podman push \
+            --tls-verify=false \
+            "$REGISTRY/$IMAGE_NAME:$IMAGE_TAG"
+
+      - name: Login to OpenShift
+        run: |
+          oc login \
+            "https://api.ocp4.example.com:6443" \
+            --token="${{ secrets.OPENSHIFT_TOKEN }}" \
+            --insecure-skip-tls-verify=true
+
+      - name: Deploy new image
+        run: |
+          oc project $NAMESPACE
+
+          oc set image deployment/myapp \
+            httpd-24=$REGISTRY/$IMAGE_NAME:$IMAGE_TAG
+
+      - name: Wait for rollout
+        run: |
+          oc rollout status deployment/myapp \
+            -n $NAMESPACE \
+            --timeout=180s
+
+            - name: Verify deployment
+        run: |
+          echo "Deployment:"
+          oc get deployment myapp -n $NAMESPACE
+
+          echo "Pods:"
+          oc get pods -n $NAMESPACE
+
+          echo "Image:"
+          oc get deployment myapp \
+            -n $NAMESPACE \
+            -o jsonpath='{.spec.template.spec.containers[*].image}'
+          echo
